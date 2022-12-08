@@ -13,6 +13,9 @@ Run `cargo run init` and follow the instructions. When it's done, `database.yml`
 
 After a database connection has been established, you can `add`, `search`, `delete`, `update` stocks. You can also `list` all of your stocks and `update-all` all of them.
 
+Let's presume you want to add the Apple stock to your database. Run `cargo run add aapl` to add it. To show its data, run `cargo run search aapl`.
+It is important that you provide the ticker symbol of the stock, not the name of the company itself.
+
 If you want to display the stock price from a date in the past, run `cargo run history STOCK-SYMBOL-YOUT-WANT-TO-DISPLAY D.M.YYYY`. If you don't fancy typing a date, you can instead type `NUMBER.DAYS/WEEKS/MONTHS/YEARS.ago`.
 
 For definitions of various financial terms, for instance Equity, run `cargo run info equity`. If you want a list of all the terms available, run `cargo run info`.
