@@ -1,0 +1,18 @@
+CREATE DATABASE stock WITH ENCODING 'UTF8';
+CREATE TABLE public.stocks (id Integer Primary Key Generated Always as Identity);
+ALTER TABLE public.stocks ADD name character varying(50);
+ALTER TABLE public.stocks ADD current_price double precision;
+ALTER TABLE public.stocks ADD eps_ttm double precision;
+ALTER TABLE public.stocks ADD pe_ratio double precision;
+ALTER TABLE public.stocks ADD total_debt_equity double precision;
+ALTER TABLE public.stocks ADD change_since character varying;
+ALTER TABLE public.stocks ADD market_cap character varying;
+ALTER TABLE public.stocks ADD peg_ratio double precision;
+ALTER TABLE public.stocks ADD price_to_book double precision;
+ALTER TABLE public.stocks ADD revenue character varying;
+ALTER TABLE public.stocks ADD gross_profit character varying;
+ALTER TABLE public.stocks ADD total_cash character varying;
+ALTER TABLE public.stocks ADD total_debt character varying;
+ALTER TABLE public.stocks ADD return_on_equity character varying;
+ALTER TABLE public.stocks ADD return_on_assets character varying;
+ALTER TABLE public.stocks ADD bvps double precision;
