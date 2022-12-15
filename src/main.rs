@@ -233,7 +233,13 @@ async fn run(opt: Opt, mut client: Client) -> Result<(), Error> {
             println!("{}", read_database_url().unwrap());
         }
         Command::SetDB { url } => {
-            match set_database_url("".to_string(), "".to_string(), url).await {
+            match set_database_url(
+                "".to_string(), 
+                "".to_string(), 
+                "".to_string(), 
+                "".to_string(), 
+                url
+            ).await {
                 Ok(_) => println!("Database URL was set!"),
                 Err(e) => {
                     println!("Error occurred when trying to set Database URL");
@@ -258,8 +264,14 @@ async fn fail_safe(opt: Opt) -> Result<(), Error> {
 
             host = if host == "" { "localhost".to_string() } else { host };
             port = if port == "" { "5433".to_string() } else { port };
-            
-            match set_database_url(user_name.clone(), pw.clone(), "".to_string()).await {
+
+            match set_database_url(
+                user_name.clone(), 
+                pw.clone(), 
+                host.clone(), 
+                port.clone(), 
+                "".to_string()
+            ).await {
                 Ok(_) => {
                     let config = format!("host={} user={} password={} port={}", host, user_name, pw, port);
                     let (client, connection) = tokio_postgres::connect(&config, NoTls).await?;
@@ -289,7 +301,13 @@ async fn fail_safe(opt: Opt) -> Result<(), Error> {
             println!("{:?}", read_database_url().unwrap());
         }
         Command::SetDB { url } => {
-            match set_database_url("".to_string(), "".to_string(), url).await {
+            match set_database_url(
+                "".to_string(), 
+                "".to_string(), 
+                "".to_string(), 
+                "".to_string(), 
+                url
+            ).await {
                 Ok(_) => println!("Database URL was set!"),
                 Err(e) => {
                     println!("Error occurred when trying to set Database URL");
@@ -354,7 +372,13 @@ fn read_database_url() -> Result<String, error::FileError> {
     Ok(url["database_url"].as_str().unwrap().to_string())
 }
 
-async fn set_database_url(user_name: String, pw: String, mut url: String) -> Result<(), error::FileError> {
+async fn set_database_url(
+    user_name: String, 
+    pw: String, 
+    host: String,
+    port: String,
+    mut url: String
+) -> Result<(), error::FileError> {
     fs::remove_file("config/database.yml").await.ok();
 
     let f = OpenOptions::new()
@@ -364,7 +388,7 @@ async fn set_database_url(user_name: String, pw: String, mut url: String) -> Res
         .expect("Couldn't open file");
 
     if url == "" {
-        url = format!("database_url: postgresql://{}:{}@localhost:5433/", user_name, pw);
+        url = format!("database_url: postgresql://{}:{}@{}:{}/", user_name, pw, host, port);
     } else {
         url = format!("database_url: {}", url);
     }
