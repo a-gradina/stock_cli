@@ -1,5 +1,23 @@
 pub mod error_handler {
     use thiserror::Error;
+
+    #[derive(Debug, Error)]
+    pub enum SetFileError {
+        #[error("File could not be read! Run 'init'.")]
+        FileMissing(#[from] std::io::Error),
+
+        #[error("Input was invalid!")]
+        InvalidInput
+    }
+
+    #[derive(Debug, Error)]
+    pub enum CheckFileError {
+        #[error("It seems that you haven't set mode yet or an error occurred previously.")]
+        FileMissing(#[from] std::io::Error),
+
+        #[error("File is not readable!")]
+        FileNotReadable(#[from] serde_yaml::Error),
+    }
     
     #[derive(Debug, Error)]
     pub enum FileError {

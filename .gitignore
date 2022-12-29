@@ -1,2 +1,4 @@
 target
 config/database.yml
+config/stocks.txt
+config/mode.yml
