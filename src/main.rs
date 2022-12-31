@@ -5,10 +5,9 @@ use chrono::{prelude::*, Duration};
 use serde_yaml;
 use std::{
     fs::{OpenOptions, File}, 
-    io::{BufWriter, Write, BufReader, BufRead}, 
+    io::{BufWriter, Write}, 
     path::Path
 };
-use tokio::fs;
 
 mod database;
 mod file;
@@ -16,9 +15,11 @@ mod errors;
 mod scraper;
 mod fundamentals;
 
-use database::cmd::cmd as database_cmd;
+use database::{cmd::cmd as database_cmd, database::database::read_database_url};
 use file::cmd::cmd as file_cmd;
 use errors::error_handler::error_handler as error;
+
+use crate::database::database::database::setup_database;
 
 #[derive(Parser, Debug)]
 #[clap(about = "Stock CLI")]
@@ -48,6 +49,8 @@ pub enum Command {
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
+    let opt = Opt::parse();
+
     match check_mode() {
         Ok(mode) => {
             if mode == "database" {
@@ -61,32 +64,24 @@ async fn main() -> Result<(), Error> {
                                     }
                                 });
                     
-                                let opt = Opt::parse();
-                    
                                 if let Err(e) = database_cmd::run(opt, client).await {
                                     println!("Error occurred: {}", e);
                                 }
                             },
                             Err(_) => {
-                                let opt = Opt::parse();
-                    
                                 if let Err(e) = database_cmd::fail_safe(opt).await {
-                                    println!("An error occurred: {}", e);
+                                    println!("Error occurred: {}", e);
                                 }
                             }
                         }
                     },
                     Err(_) => {
-                        let opt = Opt::parse();
-
                         if let Err(e) = database_cmd::fail_safe(opt).await {
-                            println!("An error occurred: {}", e);
+                            println!("Error occurred: {}", e);
                         }
                     }
                 }
             } else if mode == "file" {
-                let opt = Opt::parse();
-
                 if let Err(e) = file_cmd::run(opt).await {
                     println!("Error occurred: {}", e);
                 }
@@ -99,13 +94,6 @@ async fn main() -> Result<(), Error> {
     }
 
     Ok(())
-}
-
-fn read_database_url() -> Result<String, error::FileError> {
-    let file = std::fs::File::open("config/database.yml")?;
-    let url: serde_yaml::Mapping = serde_yaml::from_reader(file)?;
-
-    Ok(url["database_url"].as_str().unwrap().to_string())
 }
 
 fn parse_date(date: String) -> String {
@@ -126,33 +114,6 @@ fn parse_date(date: String) -> String {
     }
 
     subtr_date.format("%d.%m.%Y").to_string()
-}
-
-async fn set_database_url(
-    user_name: String, 
-    pw: String, 
-    host: String,
-    port: String,
-    mut url: String
-) -> Result<(), error::FileError> {
-    fs::remove_file("config/database.yml").await.ok();
-
-    let f = OpenOptions::new()
-        .create_new(true)
-        .write(true)
-        .open("config/database.yml")
-        .expect("Couldn't open file");
-
-    if url == "" {
-        url = format!("database_url: postgresql://{}:{}@{}:{}/", user_name, pw, host, port);
-    } else {
-        url = format!("database_url: {}", url);
-    }
-
-    let mut f = BufWriter::new(f);
-    write!(f, "{}", url)?;
-
-    Ok(())
 }
 
 pub fn set_mode() -> Result<(), error::SetFileError> {
@@ -189,52 +150,6 @@ pub fn check_mode() -> Result<String, error::CheckFileError> {
     let mode: serde_yaml::Mapping = serde_yaml::from_reader(file)?;
 
     Ok(mode["mode"].as_str().unwrap().to_string())
-}
-
-pub async fn setup_database() -> Result<(), Error> {
-    println!("Please note that you need to have Postgres installed!");
-        
-    let mut host = rpassword::prompt_password("Enter your host. If it's localhost, leave blank and press Enter").unwrap();
-    let user_name = rpassword::prompt_password("Enter your postgres user name").unwrap();
-    let pw = rpassword::prompt_password("Enter your postgres password").unwrap();
-    let mut port = rpassword::prompt_password("Enter port. Default is 5433. Leave blank if default and press Enter").unwrap();
-
-    host = if host == "" { "localhost".to_string() } else { host };
-    port = if port == "" { "5433".to_string() } else { port };
-
-    match set_database_url(
-        user_name.clone(), 
-        pw.clone(), 
-        host.clone(), 
-        port.clone(), 
-        "".to_string()
-    ).await {
-        Ok(_) => {
-            let config = format!("host={} user={} password={} port={}", host, user_name, pw, port);
-            let (client, connection) = tokio_postgres::connect(&config, NoTls).await?;
-            
-            tokio::spawn(async {
-                if let Err(e) = connection.await {
-                    eprintln!("connection error: {}", e);
-                }
-            });
-
-            println!("Creating database...");
-            
-            let file = File::open("config/schema.sql").unwrap();
-            let reader = BufReader::new(file);
-
-            for line in reader.lines().enumerate() {
-                match client.batch_execute(line.1.unwrap().as_str()).await {
-                    Err(e) => println!("error: {}", e),
-                    _ => (),
-                }
-            }
-
-            Ok(())
-        },
-        Err(e) => Ok(println!("{}", e))
-    }
 }
 
 pub async fn init_mode() {

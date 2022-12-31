@@ -1,11 +1,11 @@
 pub mod cmd {
-    use scraper::Html;
     use tokio_postgres::{Client, Error};
-    use chrono::{NaiveDate, Local};
 
-    use crate::{Opt, Command, fundamentals, parse_date, set_database_url, read_database_url, init_mode};
+    use crate::database::database::database::{read_database_url, set_database_url};
+    use crate::fundamentals::explanations::print_expl;
+    use crate::{Opt, Command, init_mode};
     use crate::database::queries::queries as database_query;
-    use crate::scraper::financial_data::get_financial_data as stock_scraper;
+    use crate::scraper::financial_data::get_financial_data::{self as stock_scraper, split_date, print_history_price};
 
     pub async fn run(opt: Opt, mut client: Client) -> Result<(), Error> {
         match opt.cmd {
@@ -49,38 +49,7 @@ pub mod cmd {
             Command::Info { explanation } => {
                 let expl = explanation.to_lowercase();
     
-                match expl.as_str() {
-                    "pe_ratio" => fundamentals::explanations::PERatio {}.info(),
-                    "equity" => fundamentals::explanations::Equity {}.info(),
-                    "market_value" => fundamentals::explanations::MarketValue {}.info(),
-                    "pb_ratio" => fundamentals::explanations::PBRatio {}.info(),
-                    "bvps" => fundamentals::explanations::BVPS {}.info(),
-                    "peg_ratio" => fundamentals::explanations::PEGRatio {}.info(),
-                    "debt_equity_ratio" => fundamentals::explanations::DebtEquityRatio {}.info(),
-                    "return_on_equity" => fundamentals::explanations::ReturnOnEquity {}.info(),
-                    "return_on_assets" => fundamentals::explanations::ReturnOnAssets {}.info(),
-                    "current_ratio" => fundamentals::explanations::CurrentRatio {}.info(),
-                    "assets" => fundamentals::explanations::Assets {}.info(),
-                    "liabilities" => fundamentals::explanations::Liabilities {}.info(),
-                    "cash_flow_statement" => fundamentals::explanations::CashFlowStatement {}.info(),
-                    "income_investing" => fundamentals::explanations::IncomeInvesting {}.info(),
-                    "issuance_of_stock" => fundamentals::explanations::IssuanceOfStock {}.info(),
-                    "cash_from_operating_activities" => fundamentals::explanations::OperatingActivities {}.info(),
-                    "cash_from_financing_activities" => fundamentals::explanations::FinancingActivities {}.info(),
-                    "cash_from_investing_activities" => fundamentals::explanations::InvestingActivities {}.info(),
-                    _ => {
-                        let options = vec!["equity", "market_value", "pb_ratio", "bvps", "peg_ratio", 
-                            "debt_equity_ratio", "return_on_equity", "return_on_assets", "current_ratio", "assets", 
-                            "liabilities", "cash_flow_statement", "income_investing", "issuance_of_stock", 
-                            "cash_from_operating_activities", "cash_from_financing_activities", "cash_from_investing_activities"
-                        ];
-    
-                        println!("No term was found. The following are supported:");
-                        for term in options {
-                            println!("  - {}", term)
-                        }
-                    }
-                }
+                print_expl(expl)
             }
             Command::Search { stock_name } => {
                 match database_query::search(&mut client, stock_name.to_lowercase(), true).await {
@@ -111,82 +80,14 @@ pub mod cmd {
     
                 database_query::update_all(&mut client).await;
             }
-            Command::History { stock_name, mut date } => {
+            Command::History { stock_name, date } => {
                 let stock = database_query::search(&mut client, stock_name.clone(), false);
-                let stock_data = stock_scraper::StockData { symbol: stock_name.clone(), url: Html::parse_document("") };
     
-                if date.contains("day") || 
-                    date.contains("week") ||
-                    date.contains("month") ||
-                    date.contains("year") {
-                    date = parse_date(date)
-                }
-                    
-                let mut splitted_date: Vec<i32> = date.split(".")
-                    .into_iter()
-                    .map(|d| d.parse::<i32>().unwrap())
-                    .collect();
-    
-                let mut parsed_date = NaiveDate::from_ymd_opt(
-                    splitted_date[2], 
-                    splitted_date[1].try_into().unwrap(), 
-                    splitted_date[0].try_into().unwrap()
-                ).unwrap();
-    
-                if parsed_date > Local::now().date_naive() {
-                    println!("The entered date lies in the future. Please provide a date from the past.");
-                    return Ok(());
-                };
-                
-                if parsed_date.format("%A").to_string() == "Saturday" || 
-                    parsed_date.format("%A").to_string() == "Sunday" {
-                    if parsed_date.format("%A").to_string() == "Saturday" {
-                        splitted_date[0] = splitted_date[0] + 2;
-                        println!("It's a Saturday so we'll take Monday.");
-                    } else if parsed_date.format("%A").to_string() == "Sunday" {
-                        splitted_date[0] = splitted_date[0] + 1;
-                        println!("It's a Sunday so we'll take Monday.");
-                    }
-                    parsed_date = NaiveDate::from_ymd_opt(
-                        splitted_date[2], 
-                        splitted_date[1].try_into().unwrap(), 
-                        splitted_date[0].try_into().unwrap()
-                    ).unwrap();
-                }
-    
-                let price_history = stock_data.historical_price(
-                    splitted_date[0], splitted_date[1], splitted_date[2]
-                );
-    
-                match price_history.await {
-                    Ok(price) => {
-                        if price == 0.0 {
-                            println!("Please take another day.");
-                            return Ok(());
-                        }
-    
-                        let unwraped_stock = stock.await.unwrap();
-    
-                        let date = splitted_date[0].to_string() 
-                                    + "." + 
-                                    splitted_date[1].to_string().as_str() 
-                                    + "." + 
-                                    splitted_date[2].to_string().as_str();
-            
-                        println!("Stock: {}", unwraped_stock.name.to_uppercase());
-                        println!("Price since last update: {}", unwraped_stock.current_price);
-                        
-                        let percentage = (unwraped_stock.current_price / price) * 100.0;
-                        println!("Date {}, {}", date, parsed_date.format("%A"));
-                        println!("Price: {:.2}", price);
-                        if percentage > 100.0 {
-                            println!("Increase until today: {:.2}%", percentage - 100.0);
-                        } else {
-                            println!("Decrease until today: {:.2}%", percentage - 100.0);
-                        }
-                    },
-                    Err(e) => println!("Error happened: {}", e)
-                }
+                let splitted_date = split_date(date);
+
+                let current_price = stock.await.unwrap().current_price;
+
+                print_history_price(stock_name, splitted_date, current_price).await
             }
             Command::Init {} => {
                 init_mode().await

@@ -1,5 +1,40 @@
 pub mod explanations {
 
+    pub fn print_expl(expl: String) {
+        match expl.as_str() {
+            "pe_ratio" => PERatio {}.info(),
+            "equity" => Equity {}.info(),
+            "market_value" => MarketValue {}.info(),
+            "pb_ratio" => PBRatio {}.info(),
+            "bvps" => BVPS {}.info(),
+            "peg_ratio" => PEGRatio {}.info(),
+            "debt_equity_ratio" => DebtEquityRatio {}.info(),
+            "return_on_equity" => ReturnOnEquity {}.info(),
+            "return_on_assets" => ReturnOnAssets {}.info(),
+            "current_ratio" => CurrentRatio {}.info(),
+            "assets" => Assets {}.info(),
+            "liabilities" => Liabilities {}.info(),
+            "cash_flow_statement" => CashFlowStatement {}.info(),
+            "income_investing" => IncomeInvesting {}.info(),
+            "issuance_of_stock" => IssuanceOfStock {}.info(),
+            "cash_from_operating_activities" => OperatingActivities {}.info(),
+            "cash_from_financing_activities" => FinancingActivities {}.info(),
+            "cash_from_investing_activities" => InvestingActivities {}.info(),
+            _ => {
+                let options = vec!["equity", "market_value", "pb_ratio", "bvps", "peg_ratio", 
+                    "debt_equity_ratio", "return_on_equity", "return_on_assets", "current_ratio", "assets", 
+                    "liabilities", "cash_flow_statement", "income_investing", "issuance_of_stock", 
+                    "cash_from_operating_activities", "cash_from_financing_activities", "cash_from_investing_activities"
+                ];
+
+                println!("No term was found. The following are supported:");
+                for term in options {
+                    println!("  - {}", term)
+                }
+            }
+        }
+    }
+
     pub struct PERatio {}
     impl PERatio {
         pub fn info(&self) {
