@@ -10,7 +10,7 @@ You need to have rust installed. Furthermore if you want to save stocks data int
 # Usage
 As mentioned earlier, there's two ways to save data. Either to your local postgres database or a text file (`config/stocks.txt`).
 
-Run `cargo init` and follow the instructions.
+Run `cargo run init` and follow the instructions.
 
 If you chose `file` during `init`, `stocks.txt` is created in `config`. If you chose `database`, `database.yml` is created in `config`.
 
